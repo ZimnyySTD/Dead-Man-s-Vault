@@ -509,9 +509,40 @@ class AddGameView(QWidget):
         row3.addWidget(browse_b2_btn)
         l3.addLayout(row3)
 
+        self.b2_sig_input = QLineEdit()
+        self.b2_sig_input.setPlaceholderText("Public Signature / Key File Path (Optional)...")
+        browse_sig_btn = QPushButton("Browse Key")
+        browse_sig_btn.clicked.connect(self._browse_signature)
+        row_sig = QHBoxLayout()
+        row_sig.addWidget(self.b2_sig_input)
+        row_sig.addWidget(browse_sig_btn)
+        l3.addLayout(row_sig)
+
         self.b2_name_input = QLineEdit()
         self.b2_name_input.setPlaceholderText("Game Name")
         l3.addWidget(self.b2_name_input)
+
+        # Chunk Links Table
+        chunk_tbl_label = QLabel("Chunk Sources Table (Hash -> URL / Path / Template):")
+        chunk_tbl_label.setStyleSheet("color: #F59E0B; font-weight: bold;")
+        l3.addWidget(chunk_tbl_label)
+
+        self.chunk_table = QTableWidget()
+        self.chunk_table.setColumnCount(2)
+        self.chunk_table.setHorizontalHeaderLabels(["Chunk Hash (or '*')", "Download URL or Local Path"])
+        self.chunk_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.chunk_table.setMaximumHeight(140)
+        l3.addWidget(self.chunk_table)
+
+        tbl_btn_bar = QHBoxLayout()
+        add_chunk_row_btn = QPushButton("+ Add Chunk Source")
+        add_chunk_row_btn.clicked.connect(self._add_chunk_table_row)
+        rem_chunk_row_btn = QPushButton("- Remove Selected")
+        rem_chunk_row_btn.clicked.connect(self._remove_chunk_table_row)
+        tbl_btn_bar.addWidget(add_chunk_row_btn)
+        tbl_btn_bar.addWidget(rem_chunk_row_btn)
+        tbl_btn_bar.addStretch()
+        l3.addLayout(tbl_btn_bar)
 
         import_b2_btn = QPushButton("Import and Install B2Chunks")
         import_b2_btn.setProperty("class", "primary")
@@ -547,6 +578,22 @@ class AddGameView(QWidget):
             self.b2_manifest_input.setText(f)
             if not self.b2_name_input.text():
                 self.b2_name_input.setText(Path(f).stem)
+
+    def _browse_signature(self):
+        f, _ = QFileDialog.getOpenFileName(self, "Select Public Key/Signature", filter="Keys (*.pub *.key *.sig *.txt)")
+        if f:
+            self.b2_sig_input.setText(f)
+
+    def _add_chunk_table_row(self):
+        row = self.chunk_table.rowCount()
+        self.chunk_table.insertRow(row)
+        self.chunk_table.setItem(row, 0, QTableWidgetItem("*"))
+        self.chunk_table.setItem(row, 1, QTableWidgetItem("https://.../{hash}"))
+
+    def _remove_chunk_table_row(self):
+        row = self.chunk_table.currentRow()
+        if row >= 0:
+            self.chunk_table.removeRow(row)
 
     def _import_folder(self):
         path = self.folder_path_input.text().strip()
@@ -587,9 +634,21 @@ class AddGameView(QWidget):
     def _import_b2(self):
         manifest = self.b2_manifest_input.text().strip()
         name = self.b2_name_input.text().strip()
+        sig = self.b2_sig_input.text().strip() or None
         if not manifest:
             QMessageBox.warning(self, "Error", "Please provide a manifest path or URL.")
             return
+
+        # Extract chunk table mappings from UI
+        chunk_map = {}
+        for r in range(self.chunk_table.rowCount()):
+            h_item = self.chunk_table.item(r, 0)
+            u_item = self.chunk_table.item(r, 1)
+            if h_item and u_item:
+                h = h_item.text().strip()
+                u = u_item.text().strip()
+                if h and u:
+                    chunk_map[h] = u
 
         import uuid
         game_id = str(uuid.uuid4())
@@ -598,7 +657,12 @@ class AddGameView(QWidget):
         game_def = GameDefinition(
             id=game_id,
             name=name,
-            source=GameSource(type="b2", manifest=manifest),
+            source=GameSource(
+                type="b2",
+                manifest=manifest,
+                signature=sig,
+                chunks=chunk_map if chunk_map else None,
+            ),
         )
         self.registry.add_or_update_game(game_def)
         self.installer.install_game(game_def)

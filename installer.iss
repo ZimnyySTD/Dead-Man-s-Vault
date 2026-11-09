@@ -15,7 +15,6 @@ AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
 DefaultDirName={autopf}\{#MyAppName}
 DisableProgramGroupPage=yes
-LicenseFile=
 OutputDir=installer_output
 OutputBaseFilename=DeadMansVault_Setup_v{#MyAppVersion}
 SetupIconFile=DeadMansVault\Resources\logo.ico

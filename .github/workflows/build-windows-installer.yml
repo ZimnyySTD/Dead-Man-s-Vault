@@ -68,14 +68,35 @@ jobs:
         run: |
           pyinstaller --noconfirm deadmansvault.spec
 
-      - name: Set up Inno Setup
-        uses: Brahn/install-innosetup@v1.4.0
-        with:
-          version: '6.3.3'
+      - name: Install Inno Setup
+        shell: powershell
+        run: |
+          choco install innosetup --yes --no-progress
 
       - name: Compile Windows Installer
+        shell: powershell
         run: |
-          iscc installer.iss
+          $iscc = Get-Command ISCC.exe -ErrorAction SilentlyContinue
+          if (-not $iscc) {
+            $candidates = @(
+              "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
+              "C:\Program Files\Inno Setup 6\ISCC.exe",
+              "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe"
+            )
+            foreach ($path in $candidates) {
+              if (Test-Path $path) {
+                $iscc = $path
+                break
+              }
+            }
+          } else {
+            $iscc = $iscc.Source
+          }
+          if (-not $iscc) {
+            throw "ISCC.exe not found on runner!"
+          }
+          Write-Host "Using ISCC at: $iscc"
+          & $iscc installer.iss
 
       - name: Upload Windows Installer Artifact
         uses: actions/upload-artifact@v4
