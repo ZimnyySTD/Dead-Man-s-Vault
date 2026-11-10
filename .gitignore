@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+*.part
+logs/
+cache/
+temp_downloads/
+installed_games/
+data/
+dist/
+build/
+installer_output/
